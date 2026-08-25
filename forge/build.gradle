@@ -57,18 +57,6 @@ repositories {
             }
         }
         maven { url = "https://jitpack.io/" }
-
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = "Modrinth"
-                    url = "https://api.modrinth.com/maven"
-                }
-            }
-            filter {
-                includeGroup "maven.modrinth"
-            }
-        }
     }
 }
 
@@ -167,6 +155,18 @@ loom {
                 "vs_clockwork-common.mixins.json",
                 "vs_clockwork.mixins.json"
         )
+    }
+
+    runs {
+        client {
+            // Allocate 4GB maximum and 2GB minimum memory
+            vmArg "-Xmx4G"
+            vmArg "-Xms2G"
+
+            // Optional: Optimized Garbage Collection parameters
+            vmArg "-XX:+UseG1GC"
+            vmArg "-XX:+AlwaysPreTouch"
+        }
     }
 }
 

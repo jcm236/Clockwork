@@ -1,3 +1,4 @@
+import net.fabricmc.loom.api.LoomGradleExtensionAPI
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
@@ -69,13 +70,14 @@ subprojects {
     repositories {
         maven { url = "https://maven.bawnorton.com/releases" }
 
-        // region JEI mavens
-        maven {
-            // location of the maven that hosts JEI files before January 2023
-            name = "Progwml6's maven"
-            url = "https://dvs1.progwml6.com/files/maven/"
-            content { includeGroup "mezz.jei" }
-        }
+        // region JEI maven
+//      We dont need ts bro why
+//        maven {
+//            // location of the maven that hosts JEI files before January 2023
+//            name = "Progwml6's maven"
+//            url = "https://dvs1.progwml6.com/files/maven/"
+//            content { includeGroup "mezz.jei" }
+//        }
         maven {
             // location of the maven that hosts JEI files since January 2023
             name = "Jared's maven"

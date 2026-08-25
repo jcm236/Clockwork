@@ -42,7 +42,7 @@ import org.valkyrienskies.clockwork.content.contraptions.propeller.copter.Copter
 import org.valkyrienskies.clockwork.content.contraptions.propeller.data.PropCreateData
 import org.valkyrienskies.clockwork.content.contraptions.propeller.data.PropData
 import org.valkyrienskies.clockwork.content.contraptions.propeller.data.PropUpdateData
-import org.valkyrienskies.clockwork.content.forces.PropellerController
+import org.valkyrienskies.clockwork.content.forces.NewProppityBoppity
 import org.valkyrienskies.clockwork.content.generic.IForceApplierBE
 import org.valkyrienskies.clockwork.util.blocktype.SyncableStoragePacket
 import org.valkyrienskies.clockwork.util.sound.PropellerSoundInstance
@@ -54,7 +54,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.min
 import kotlin.math.sin
 
-open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, state: BlockState, val brass: Boolean = false) : KineticBlockEntity(type, pos, state), IBearingBlockEntity, IForceApplierBE<PropUpdateData, PropData, PropCreateData, PropellerController> {
+open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, state: BlockState, val brass: Boolean = false) : KineticBlockEntity(type, pos, state), IBearingBlockEntity, IForceApplierBE<PropUpdateData, PropData, PropCreateData, NewProppityBoppity> {
 
     var sailPositions: MutableList<Vector3ic> = ArrayList()
     var blades: MutableList<BladeData> = ArrayList()
@@ -267,7 +267,7 @@ open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, 
 
         if (!level!!.isClientSide && level!!.getShipObjectManagingPos(blockPos) != null) {
             val shipOn = (level as ServerLevel).getShipObjectManagingPos(blockPos)!!
-            val attachment = PropellerController.getOrCreate(shipOn)!!
+            val attachment = NewProppityBoppity.getOrCreate(shipOn)!!
             getBlades()
             tickData(attachment, true)
         }
@@ -333,8 +333,8 @@ open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, 
         }
     }
 
-    override fun tickData(attachment: PropellerController, shouldUpdate: Boolean) {
-        if (running && propellerContraption != null) super.tickData(attachment, shouldUpdate) else removeApplier(PropellerController::class.java, level, worldPosition)
+    override fun tickData(attachment: NewProppityBoppity, shouldUpdate: Boolean) {
+        if (running && propellerContraption != null) super.tickData(attachment, shouldUpdate) else removeApplier(NewProppityBoppity::class.java, level, worldPosition)
     }
 
     open fun assemble() {
@@ -382,7 +382,7 @@ open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, 
                 blockPos
             )
             if (ship != null) {
-                tickData(PropellerController.getOrCreate(ship)!!, true)
+                tickData(NewProppityBoppity.getOrCreate(ship)!!, true)
             }
         }
         sendData()
@@ -409,7 +409,7 @@ open class PropellerBearingBlockEntity(type: BlockEntityType<*>, pos: BlockPos, 
         propellerContraption = null
         running = false
         if (physID != -1) {
-            removeApplier(PropellerController::class.java, level, worldPosition)
+            removeApplier(NewProppityBoppity::class.java, level, worldPosition)
         }
 
         // Remove stress impact
