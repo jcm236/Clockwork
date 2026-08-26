@@ -23,11 +23,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.*
 
 private data class ThrustSurface(
-    val radius: Double,        // distance from bearing axis
-    val pitchRadians: Double,  // static angle of incidence; ignored if adaptivePitch is true
-    val chordWidth: Double,    // swept width -> dA = chordWidth * radius
-    val angularOffset: Double, // this surface's fixed position around the bearing, radians
-    val adaptivePitch: Boolean = false, // legacy sail behavior: self-trim toward optimal AoA
+    val radius: Double,
+    val pitchRadians: Double,
+    val chordWidth: Double,
+    val angularOffset: Double, // radians
+    val isSail: Boolean = false,
     val axialOffset: Double = 0.0
 )
 
@@ -121,7 +121,6 @@ class NewProppityBoppity(
                     pitchRadians = -Math.toRadians(blade.angle),
                     chordWidth = if (blade.wide) 0.375 else 0.25,
                     angularOffset = angleBetweenBlades * i,
-                    axialOffset = 1.0 // disable the thingy for blades
                 )
             }
         }
@@ -135,11 +134,7 @@ class NewProppityBoppity(
 
             return sails.mapNotNull { pos ->
                 val posVec = Vector3d(pos)
-                // Project the raw offset onto the plane perpendicular to the
-                // bearing axis to recover a (radius, angularOffset) pair —
-                // the old sail loop worked with the full 3D offset directly,
-                // this is the one genuinely new piece of derivation needed
-                // to fold sails into the same ThrustSurface shape as blades.
+                //Flattens the sail blocks into a single plane
                 val axialComponent = Vector3d(referencePropAxis).mul(posVec.dot(referencePropAxis))
                 val radial = Vector3d(posVec).sub(axialComponent)
                 val radius = radial.length()
@@ -156,7 +151,7 @@ class NewProppityBoppity(
                     pitchRadians = Math.toRadians(12.0), // fallback only; overridden when adaptivePitch is used
                     chordWidth = 1.0,
                     angularOffset = angularOffset,
-                    adaptivePitch = true, // restores legacy self-trimming behavior, see computeSurfaceForce
+                    isSail = true,
                     axialOffset = signedAxialOffset
                 )
             }
@@ -192,7 +187,7 @@ class NewProppityBoppity(
         val referencePropAxis = tiltQuat.transform(Vector3d(baseAxis))
         val clockwiseAxis: Vector3dc = tiltQuat.transform(Vector3d(baseClockwiseAxis))
 
-        val worldAxis = physShip.transform.shipToWorld.transformDirection(referencePropAxis, Vector3d()).normalize(Vector3d())
+        val worldAxis = physShip.transform.shipToWorld.transformDirection(baseAxis, Vector3d()).normalize(Vector3d())
 
         val totalVelocityAtProp = physShip.velocity
             .add(wind, Vector3d())
@@ -230,6 +225,11 @@ class NewProppityBoppity(
         estAngle: Double,
         physShip: PhysShip
     ): Pair<Vector3dc, Vector3dc> {
+
+        if (abs(surface.axialOffset) > 4.0) {
+            return Vector3d() to Vector3d()
+        }
+
         val bearingSpeed = physProp.bearingSpeed
         val rotationalVelocity = bearingSpeed.absoluteValue * surface.radius
         val absVt = abs(rotationalVelocity)
@@ -248,7 +248,7 @@ class NewProppityBoppity(
         // on a given propeller share and stomp the same `currentBladePitch`
         // state (it was never per-sail) — noted here rather than silently fixed,
         // since fixing it changes tuning/feel and should be a deliberate call.
-        val pitch = if (surface.adaptivePitch) {
+        val pitch = if (surface.isSail) {
             val optimalAngleOfAttack = -Math.toRadians(4.0)
             val optimalPitch = phi + optimalAngleOfAttack
             val minPitch = Math.toRadians(-5.0)
@@ -270,7 +270,9 @@ class NewProppityBoppity(
         val vA = -env.axialInflowVelocity + induced
         val effectiveVelocity = sqrt(vA * vA + rotationalVelocity * rotationalVelocity)
 
-        val dA = surface.chordWidth * surface.radius
+        // dA is set to 1 for sails so the math ends up mathing to the old formula
+        val dA = if (surface.isSail) 1.0 else surface.chordWidth * surface.radius
+
         val q = 0.5 * env.airDensity * effectiveVelocity.pow(2.0)
         val dLift = q * dA * liftCoefficient
         val dDrag = q * dA * dragCoefficient
@@ -293,12 +295,17 @@ class NewProppityBoppity(
         val torque = leverWorld.cross(force, Vector3d())
 
 
-        //not sure if intentional or not :thonk:
-        val falloffSafe = abs(surface.axialOffset).coerceAtLeast(0.1)
-        val adjustedForce = force.div(falloffSafe, Vector3d())
-        val adjustedTorque = torque.div(falloffSafe, Vector3d())
+        // not sure if intentional or not :thonk:.
+        // nevermind it seems to be needed
+        val (finalForce, finalTorque) = if (surface.isSail) {
+            val falloffSafe = abs(surface.axialOffset).coerceAtLeast(0.1)
+            force.div(falloffSafe, Vector3d()) to torque.div(falloffSafe, Vector3d())
+        } else {
+            force to torque
+        }
 
-        return adjustedForce to adjustedTorque
+        return finalForce to finalTorque
+//        return force to torque
     }
 
     private fun clampVectorMagnitudeInPlace(vec: Vector3d, maxMagnitude: Double) {
